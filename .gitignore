@@ -1,0 +1,14 @@
+node_modules/
+*.tsbuildinfo
+frontend/dist/
+frontend/vite.config.js
+frontend/vite.config.d.ts
+backend/.env
+.env
+.env.*
+!.env.example
+frontend/.env*
+!frontend/.env.example
+supabase/.temp/
+*.log
+.DS_Store
