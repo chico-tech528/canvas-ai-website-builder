@@ -36,6 +36,7 @@
     "vite": "^6.0.5"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "4.65.0"
+    "@rollup/rollup-linux-x64-gnu": "4.65.0",
+    "@rollup/rollup-linux-x64-musl": "4.65.0"
   }
 }
