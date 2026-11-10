@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import type { HttpProxy } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
@@ -23,7 +24,7 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 130_000,
         proxyTimeout: 130_000,
-        configure(proxy) {
+        configure(proxy: HttpProxy.Server) {
           proxy.on("error", (error, request) => {
             console.error(`[Vite API proxy] ${request.method} ${request.url} failed: ${error.message}`);
           });
