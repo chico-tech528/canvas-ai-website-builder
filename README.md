@@ -92,7 +92,7 @@ Login/signup uses Supabase Auth; in production all website generation and projec
 
 ### Deploying to Render
 
-The included [`render.yaml`](./render.yaml) configures a single Node web service that builds the Vite frontend and serves it from the production Express server. Create a Render Blueprint from the GitHub repository, then provide the requested environment values in Render's dashboard:
+The included [`render.yaml`](./render.yaml) configures a single free Node web service for initial testing. It builds the Vite frontend and serves it from the production Express server. Free services can spin down and are not a production availability target. Create a Render Blueprint from the GitHub repository, then provide the requested environment values in Render's dashboard:
 
 - `VITE_SUPABASE_URL` and `SUPABASE_URL`: the same Supabase project URL.
 - `VITE_SUPABASE_ANON_KEY`: the Supabase publishable/anon key.
