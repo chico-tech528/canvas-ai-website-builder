@@ -4,6 +4,14 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../contexts/useAuth";
 
+function getAuthErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  if (/invalid\s*(?:api)?\s*key|api\s*key.{0,30}invalid/i.test(message)) {
+    return "We couldn't connect to secure sign-in. Please contact support so we can fix the authentication settings.";
+  }
+  return message || fallback;
+}
+
 export default function AuthPage({ initialMode }: { initialMode?: string }) {
   const params = useParams();
   const [searchParams] = useSearchParams();
@@ -38,7 +46,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
     setSubmitting(true);
     void startPhoneVerification(pendingPhone)
       .then(() => toast.success("Check your phone for a verification code."))
-      .catch((verificationError: unknown) => setError(verificationError instanceof Error ? verificationError.message : "Unable to send a phone verification code."))
+      .catch((verificationError: unknown) => setError(getAuthErrorMessage(verificationError, "Unable to send a phone verification code.")))
       .finally(() => setSubmitting(false));
   }, [searchParams, startPhoneVerification, user]);
 
@@ -48,10 +56,10 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
     try {
       await signInWithGoogle();
     } catch (authError) {
-      const message = authError instanceof Error ? authError.message : "";
+      const message = getAuthErrorMessage(authError, "Google sign-in failed. Please try again.");
       setError(message.includes("Unsupported provider")
         ? "Google sign-in is not enabled for this app yet. Use email or phone sign-in, or contact the app administrator."
-        : message || "Google sign-in failed. Please try again.");
+        : message);
       setSubmitting(false);
     }
   }
@@ -108,7 +116,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       }
       navigate("/", { replace: true });
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Authentication failed. Please try again.");
+      setError(getAuthErrorMessage(submitError, "Authentication failed. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -123,7 +131,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       toast.success("Phone number verified. Welcome to Canvas.");
       navigate("/", { replace: true });
     } catch (verificationError) {
-      setError(verificationError instanceof Error ? verificationError.message : "Phone verification failed. Check the code and try again.");
+      setError(getAuthErrorMessage(verificationError, "Phone verification failed. Check the code and try again."));
     } finally {
       setSubmitting(false);
     }
@@ -136,7 +144,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       await resendPhoneVerification(phone);
       toast.success("A new verification code has been sent.");
     } catch (resendError) {
-      setError(resendError instanceof Error ? resendError.message : "Unable to resend the verification code.");
+      setError(getAuthErrorMessage(resendError, "Unable to resend the verification code."));
     } finally {
       setSubmitting(false);
     }
@@ -149,7 +157,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       await signOut();
       navigate("/login", { replace: true });
     } catch (signOutError) {
-      setError(signOutError instanceof Error ? signOutError.message : "Unable to sign out.");
+      setError(getAuthErrorMessage(signOutError, "Unable to sign out."));
     } finally {
       setSubmitting(false);
     }
@@ -163,7 +171,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       setResetSent(true);
       toast.success("If that account exists, a password-reset email is on its way.");
     } catch (resetError) {
-      setError(resetError instanceof Error ? resetError.message : "Unable to request a password reset.");
+      setError(getAuthErrorMessage(resetError, "Unable to request a password reset."));
     } finally {
       setSubmitting(false);
     }
@@ -182,7 +190,7 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       toast.success("Your password has been updated.");
       navigate("/", { replace: true });
     } catch (passwordError) {
-      setError(passwordError instanceof Error ? passwordError.message : "Unable to update your password. Request a new reset link and try again.");
+      setError(getAuthErrorMessage(passwordError, "Unable to update your password. Request a new reset link and try again."));
     } finally {
       setSubmitting(false);
     }
@@ -256,12 +264,11 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
           </form>
         </>}
         {configured && !phoneVerificationRequired && !passwordRecovery && <>
-          {googleAuthEnabled
-            ? <button className="google-auth-button" type="button" disabled={submitting} onClick={() => void continueWithGoogle()}>
-              <span className="google-auth-mark" aria-hidden="true">G</span>
-              Continue with Google
-            </button>
-            : <p className="auth-provider-note">Google sign-in is being set up. You can use email and password now.</p>}
+          <button className="google-auth-button" type="button" disabled={submitting || !googleAuthEnabled} onClick={() => void continueWithGoogle()}>
+            <span className="google-auth-mark" aria-hidden="true">G</span>
+            Continue with Google
+          </button>
+          {!googleAuthEnabled && <p className="auth-provider-note">Google sign-in is being set up. Email and password sign-in are available now.</p>}
           <div className="auth-divider"><span>{signup ? "OR SIGN UP WITH EMAIL" : "OR CONTINUE WITH EMAIL OR PHONE"}</span></div>
           <form onSubmit={(event) => void submit(event)}>
             {signup && <label>Your name<input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={100} placeholder="Alex Morgan" disabled={!configured || submitting} /></label>}
