@@ -5,6 +5,8 @@ const { requestGemini } = require("../utils/geminiRequest");
 const { isOnlineStorePrompt } = require("../utils/promptIntent");
 const { z } = require("zod");
 
+const geminiTimeout = process.env.VERCEL ? 50_000 : 55_000;
+
 const paletteSchema = z.object({
   primary: z.string().regex(/^#[\da-fA-F]{6}$/),
   background: z.string().regex(/^#[\da-fA-F]{6}$/),
@@ -93,7 +95,7 @@ Return only JSON matching this shape:
   ]
 }
 Use 4 to 8 relevant sections, prioritizing every distinct content area the user explicitly requests over decorative sections. Put one hero first and a footer last. Choose section types and order for the actual request, not a fixed template. Use the closest semantic blocks: products/categories for stores, menu for restaurants, gallery for portfolios/architecture, team for staff, events/schedule/location for venues, blog for articles, stats for measurable highlights, process for steps, FAQ for questions, and services/features for agencies or software. If the user asks for opening hours, class times, or an itinerary, include a schedule section; for addresses or directions, include a location section; for reservations, bookings, or inquiries, include a contact section. For an online store, include categories and a products section with at least 4 named products and realistic prices. Preserve all concrete details the user requested (names, audience, features, location, offerings, hours, counts, and calls to action) in the generated headings, descriptions, items, or cards; do not silently omit requested details. Do not substitute generic filler or reuse a canned website. Pick a visual style and color palette that fit the prompt. Put a representative visual card on the hero when useful. Include "cards" on every section (empty only when the section does not use cards); each card has a specific title and description. Put prices, metrics, and labels in the description when relevant. Return a hero first and a footer last.`,
-    { timeout: 55_000 },
+    { timeout: geminiTimeout },
   ));
 
   const raw = result.response.text();
@@ -144,7 +146,7 @@ async function generatePalette(prompt) {
   const result = await requestGemini(() => model.generateContent(
     `Create an accessible, cohesive 3-color website palette for this creative direction: "${prompt}".
 Return only JSON with exactly these keys: primary, background, text. Each value must be a six-digit hex color including #. Ensure text has strong contrast against background.`,
-    { timeout: 55_000 },
+    { timeout: geminiTimeout },
   ));
   let parsed;
   try {

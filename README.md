@@ -90,6 +90,27 @@ Login/signup uses Supabase Auth; in production all website generation and projec
 
 ## Production deployment
 
+### Free Vercel deployment
+
+The included [`vercel.json`](./vercel.json) builds the Vite frontend as static assets and routes `/api/*` to the Express API as a Vercel Function. To deploy:
+
+1. Import `chico-tech528/canvas-ai-website-builder` from GitHub into your Vercel Hobby account and keep the project root set to `.`.
+2. Add the environment variables below in Vercel project settings for **Production**, **Preview**, and **Development** as needed. Keep all private values in Vercel's environment-variable settings; never put the service-role key in a `VITE_` variable.
+3. Before the first deployment, apply `supabase/migrations/20261031200000_projects.sql` to your Supabase project and configure the Auth site URL/allowed redirects for the eventual Vercel domain.
+4. Deploy from the Vercel dashboard. Verify the app loads and `https://<your-vercel-domain>/api/health` returns `{"status":"ok"}`.
+
+Required Vercel environment variables:
+
+- `VITE_SUPABASE_URL` and `SUPABASE_URL`: the same Supabase project URL.
+- `VITE_SUPABASE_ANON_KEY`: the public Supabase publishable/anon key.
+- `SUPABASE_SERVICE_ROLE_KEY`: the server-only Supabase service-role key.
+- `GEMINI_API_KEY`: the Gemini API key.
+- `TRUST_PROXY=1`: trust the Vercel proxy for client IP-based request limits.
+
+Vercel supplies `NODE_ENV` and `VERCEL` automatically. The frontend and API share an origin, so leave `VITE_API_URL` unset. Readiness requires working Supabase credentials and the projects table.
+
+Vercel Hobby is free for personal, non-commercial projects and has usage and function-duration limits; it is not an uptime guarantee. This configuration caps the API function at 150 seconds and Gemini requests at 50 seconds per attempt so retries and image enrichment fit within the browser's request timeout. Gemini usage and other third-party services have separate quotas and may have separate charges. Review [Vercel Hobby plan limits](https://vercel.com/docs/plans/hobby) before deploying; the free Hobby plan is for personal, non-commercial use only.
+
 ### Deploying to Render
 
 The included [`render.yaml`](./render.yaml) configures a single free Node web service for initial testing. Its build explicitly installs development dependencies because Vite and TypeScript are required at build time even when the running service uses `NODE_ENV=production`; it then serves the built frontend from the Express server. Free services can spin down and are not a production availability target. Create a Render Blueprint from the GitHub repository, then provide the requested environment values in Render's dashboard:
@@ -99,7 +120,7 @@ The included [`render.yaml`](./render.yaml) configures a single free Node web se
 - `SUPABASE_SERVICE_ROLE_KEY`: the server-only Supabase service-role key.
 - `GEMINI_API_KEY`: the Gemini API key.
 
-Rotate any credentials that may have been exposed before entering production secrets. Do not commit `.env` files or put the service-role key in a `VITE_` variable. The Blueprint disables automatic deploys until the service has been configured. After setup, deploy and verify `GET /api/health` reports `{"status":"ok"}`. Configure the deployed HTTPS origin in Supabase Auth's site URL and redirect allowlist. Select a paid persistent Render plan for production use; the free plan may spin down and is not a production availability target.
+Rotate any credentials that may have been exposed before entering production secrets. Do not commit `.env` files or put the service-role key in a `VITE_` variable. Configure the deployed HTTPS origin in Supabase Auth's site URL and redirect allowlist, then verify `GET /api/health` reports `{"status":"ok"}`. Select a paid persistent Render plan for production use; the free plan may spin down and is not a production availability target.
 
 For the included Docker image, build with the public Supabase frontend configuration and inject private backend keys at runtime through your hosting provider's secret manager:
 

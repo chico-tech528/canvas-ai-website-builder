@@ -72,7 +72,7 @@ app.use("/api/generate", requireAuth, generationLimiter, generateRoute);
 app.use("/api/theme", requireAuth, generationLimiter, themeRoute);
 app.use("/api/projects", projectsRoute);
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
   const frontendDist = path.resolve(__dirname, "../frontend/dist");
   const frontendIndex = path.join(frontendDist, "index.html");
   if (!fs.existsSync(frontendIndex)) {

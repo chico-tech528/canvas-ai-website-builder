@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const http = require("node:http");
 const { after, before, test } = require("node:test");
 const { once } = require("node:events");
 
@@ -8,6 +9,7 @@ process.env.SUPABASE_URL = "";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "";
 
 const app = require("../server");
+const vercelHandler = require("../../api/handler");
 const { requireProductionConfiguration } = require("../middleware/auth");
 const { websiteSchema } = require("../utils/schema");
 
@@ -28,6 +30,19 @@ test("health check returns ready status", async () => {
   const response = await fetch(`${baseUrl}/api/health`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: "ok" });
+});
+
+test("Vercel API rewrite forwards requests to the matching Express route", async () => {
+  const vercelServer = http.createServer(vercelHandler).listen(0);
+  await once(vercelServer, "listening");
+  try {
+    const { port: vercelPort } = vercelServer.address();
+    const response = await fetch(`http://127.0.0.1:${vercelPort}/api/handler?path=health`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: "ok" });
+  } finally {
+    await new Promise((resolve, reject) => vercelServer.close((error) => error ? reject(error) : resolve()));
+  }
 });
 
 test("website schema accepts product cards for commerce-specific previews", () => {
