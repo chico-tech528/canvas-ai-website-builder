@@ -385,6 +385,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .google-auth-button:hover:not(:disabled) { border-color: #75668f; background: #201e24; }
 .google-auth-button:disabled { opacity: .6; cursor: wait; }
 .google-auth-mark { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; color: #4285f4; background: #fff; font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; }
+.auth-provider-note { margin: 0; padding: 11px 12px; border: 1px solid #37333e; border-radius: 7px; color: #aaa4b4; background: #17161a; font-size: 10px; line-height: 1.5; text-align: center; }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 21px 0; color: #797680; font-size: 8px; font-weight: 600; letter-spacing: 1px; }
 .auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: #302e34; content: ""; }
 .auth-card form { display: flex; flex-direction: column; gap: 14px; }
@@ -397,6 +398,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .phone-verify-note svg { flex: 0 0 auto; color: #b7a4ef; }
 .auth-secondary-action { align-self: center; border: 0; color: #aaa4b4; background: transparent; font-size: 10px; cursor: pointer; }
 .auth-secondary-action:hover:not(:disabled) { color: #ded5ee; }
+.auth-success { margin: 0; padding: 11px 12px; border: 1px solid #315943; border-radius: 7px; color: #bce7c9; background: #14251b; font-size: 10px; line-height: 1.55; }
 .forgot-link { align-self: flex-end; margin-top: -6px; color: #b7a4ef; font-size: 10px; }
 .auth-card button.forgot-link { padding: 0; border: 0; background: none; cursor: pointer; }
 .auth-card button.forgot-link:disabled { opacity: .6; cursor: not-allowed; }

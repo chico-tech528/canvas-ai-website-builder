@@ -4,6 +4,7 @@ import { createContext } from "react";
 export interface AuthContextValue {
   configured: boolean;
   loading: boolean;
+  recoveryMode: boolean;
   session: Session | null;
   user: User | null;
   signIn(identifier: string, password: string): Promise<{ phoneToVerify: string | null }>;
@@ -13,6 +14,7 @@ export interface AuthContextValue {
   resendPhoneVerification(phone: string): Promise<void>;
   verifyPhone(phone: string, token: string): Promise<void>;
   resetPassword(email: string): Promise<void>;
+  updatePassword(password: string): Promise<void>;
   signOut(): Promise<void>;
 }
 

@@ -7,9 +7,12 @@ import { useAuth } from "../contexts/useAuth";
 export default function AuthPage({ initialMode }: { initialMode?: string }) {
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const signup = (params.mode || initialMode || "login") === "signup";
+  const mode = params.mode || initialMode || "login";
+  const signup = mode === "signup";
+  const passwordRecovery = mode === "reset-password";
+  const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
   const navigate = useNavigate();
-  const { configured, user, signIn, signInWithGoogle, signUp, startPhoneVerification, resendPhoneVerification, verifyPhone, resetPassword, signOut } = useAuth();
+  const { configured, loading, recoveryMode, user, signIn, signInWithGoogle, signUp, startPhoneVerification, resendPhoneVerification, verifyPhone, resetPassword, updatePassword, signOut } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -18,6 +21,8 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
   const [phoneVerificationRequired, setPhoneVerificationRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const resumedVerification = useRef("");
 
@@ -43,7 +48,10 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
     try {
       await signInWithGoogle();
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Google sign-in failed. Please try again.");
+      const message = authError instanceof Error ? authError.message : "";
+      setError(message.includes("Unsupported provider")
+        ? "Google sign-in is not enabled for this app yet. Use email or phone sign-in, or contact the app administrator."
+        : message || "Google sign-in failed. Please try again.");
       setSubmitting(false);
     }
   }
@@ -55,15 +63,20 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
     try {
       if (signup) {
         const normalizedPhone = phone.replace(/[\s().-]/g, "");
-        if (!/^\+[1-9]\d{7,14}$/.test(normalizedPhone)) {
+        if (normalizedPhone && !/^\+[1-9]\d{7,14}$/.test(normalizedPhone)) {
           setError("Enter your phone number in international format, including the country code (for example, +14155552671).");
           setSubmitting(false);
           return;
         }
-        const hasSession = await signUp(email.trim(), password, name.trim(), normalizedPhone);
+        const hasSession = await signUp(email.trim().toLowerCase(), password, name.trim(), normalizedPhone);
         if (!hasSession) {
           toast.success("Account created. Check your email to confirm it, then sign in.");
           navigate("/login", { replace: true });
+          return;
+        }
+        if (!normalizedPhone) {
+          toast.success("Your account is ready. Welcome to Canvas.");
+          navigate("/", { replace: true });
           return;
         }
         await startPhoneVerification(normalizedPhone);
@@ -80,7 +93,10 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
             return;
           }
         }
-        const { phoneToVerify } = await signIn(identifier.includes("@") ? identifier : identifier.replace(/[\s().-]/g, ""), password);
+        const normalizedIdentifier = identifier.includes("@")
+          ? identifier.toLowerCase()
+          : identifier.replace(/[\s().-]/g, "");
+        const { phoneToVerify } = await signIn(normalizedIdentifier, password);
         if (phoneToVerify) {
           await startPhoneVerification(phoneToVerify);
           setPhone(phoneToVerify);
@@ -143,11 +159,30 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
     setError("");
     setSubmitting(true);
     try {
-      await resetPassword(email.trim());
+      await resetPassword(email.trim().toLowerCase());
       setResetSent(true);
       toast.success("If that account exists, a password-reset email is on its way.");
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Unable to request a password reset.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitNewPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    if (newPassword !== confirmPassword) {
+      setError("Your passwords do not match.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await updatePassword(newPassword);
+      toast.success("Your password has been updated.");
+      navigate("/", { replace: true });
+    } catch (passwordError) {
+      setError(passwordError instanceof Error ? passwordError.message : "Unable to update your password. Request a new reset link and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -180,12 +215,12 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
       <section className="auth-panel">
         <header className="auth-panel-header">
           <span>{signup ? "Already have an account?" : "New to Canvas?"}</span>
-          <Link to={signup ? "/login" : "/signup"}>{signup ? "Log in" : "Create account"} <ArrowRight size={14} /></Link>
+          <Link to={signup || passwordRecovery ? "/login" : "/signup"}>{signup || passwordRecovery ? "Log in" : "Create account"} <ArrowRight size={14} /></Link>
         </header>
         <div className="auth-card">
-          <span className="auth-card-kicker">{signup ? "GET STARTED FOR FREE" : "WELCOME BACK"}</span>
-          <h2>{phoneVerificationRequired ? "Verify your phone" : signup ? "Create your account" : "Sign in to Canvas"}</h2>
-          <p className="auth-card-description">{phoneVerificationRequired ? `Enter the SMS code sent to ${phone}.` : signup ? "Save your projects and pick up where inspiration leaves off." : "Your next great website is right where you left it."}</p>
+          <span className="auth-card-kicker">{passwordRecovery ? "ACCOUNT SECURITY" : signup ? "GET STARTED FOR FREE" : "WELCOME BACK"}</span>
+          <h2>{phoneVerificationRequired ? "Verify your phone" : passwordRecovery ? "Choose a new password" : signup ? "Create your account" : "Sign in to Canvas"}</h2>
+          <p className="auth-card-description">{phoneVerificationRequired ? `Enter the SMS code sent to ${phone}.` : passwordRecovery ? "Choose a strong password to secure your account and return to your workspace." : signup ? "Save your projects and pick up where inspiration leaves off." : "Your next great website is right where you left it."}</p>
         {!configured && (import.meta.env.PROD
           ? <div className="auth-error" role="alert">
             Authentication is not configured for this deployment. Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to the frontend build, plus <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code> to the backend host. Configure an SMS provider in Supabase to enable phone verification.
@@ -204,6 +239,13 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
           </div>
         )}
         {error && <div className="auth-error" role="alert">{error}</div>}
+        {passwordRecovery && configured && loading && <p className="auth-card-description" role="status">Verifying your password-reset link…</p>}
+        {passwordRecovery && configured && !loading && !recoveryMode && <div className="auth-error" role="alert">This password-reset link is invalid or has expired. <Link to="/login">Return to sign in</Link> and request a new one.</div>}
+        {passwordRecovery && configured && !loading && recoveryMode && <form onSubmit={(event) => void submitNewPassword(event)}>
+          <label>New password<input required type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="At least 8 characters" disabled={submitting} /></label>
+          <label>Confirm new password<input required type="password" autoComplete="new-password" minLength={8} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Enter your password again" disabled={submitting} /></label>
+          <button className="auth-submit" type="submit" disabled={submitting || newPassword.length < 8 || confirmPassword.length < 8}>{submitting ? "Updating password…" : "Update password"} <ArrowRight size={16} /></button>
+        </form>}
         {configured && phoneVerificationRequired && <>
           <div className="phone-verify-note"><LockKeyhole size={17} /><span>Phone verification protects your account and enables phone-number sign-in.</span></div>
           <form onSubmit={(event) => void submitPhoneCode(event)}>
@@ -213,19 +255,22 @@ export default function AuthPage({ initialMode }: { initialMode?: string }) {
             <button className="auth-secondary-action" type="button" disabled={submitting} onClick={() => void signOutAndUseAnotherAccount()}>Sign out and use another account</button>
           </form>
         </>}
-        {configured && !phoneVerificationRequired && <>
-          <button className="google-auth-button" type="button" disabled={submitting} onClick={() => void continueWithGoogle()}>
-            <span className="google-auth-mark" aria-hidden="true">G</span>
-            Continue with Google
-          </button>
-          <div className="auth-divider"><span>{signup ? "OR CONTINUE WITH EMAIL" : "OR CONTINUE WITH EMAIL OR PHONE"}</span></div>
+        {configured && !phoneVerificationRequired && !passwordRecovery && <>
+          {googleAuthEnabled
+            ? <button className="google-auth-button" type="button" disabled={submitting} onClick={() => void continueWithGoogle()}>
+              <span className="google-auth-mark" aria-hidden="true">G</span>
+              Continue with Google
+            </button>
+            : <p className="auth-provider-note">Google sign-in is being set up. You can use email and password now.</p>}
+          <div className="auth-divider"><span>{signup ? "OR SIGN UP WITH EMAIL" : "OR CONTINUE WITH EMAIL OR PHONE"}</span></div>
           <form onSubmit={(event) => void submit(event)}>
             {signup && <label>Your name<input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={100} placeholder="Alex Morgan" disabled={!configured || submitting} /></label>}
             <label>{signup ? "Email address" : "Email or verified phone"}<input required type={signup ? "email" : "text"} autoComplete={signup ? "email" : "username"} inputMode={signup ? "email" : "text"} value={email} onChange={(event) => setEmail(event.target.value)} placeholder={signup ? "you@example.com" : "you@example.com or +14155552671"} disabled={!configured || submitting} /></label>
-            {signup && <label>Phone number<input required type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 415 555 2671" aria-describedby="phone-number-help" disabled={!configured || submitting} /><span id="phone-number-help" className="auth-field-help">We’ll send an SMS code to verify this number.</span></label>}
-            <label>Password<input required type="password" autoComplete={signup ? "new-password" : "current-password"} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={signup ? "Create a password (8+ characters)" : "Enter your password"} disabled={!configured || submitting} /></label>
+            {signup && <label>Phone number (optional)<input type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 415 555 2671" aria-describedby="phone-number-help" disabled={!configured || submitting} /><span id="phone-number-help" className="auth-field-help">Add a number to verify it by SMS. You can also sign up with email only.</span></label>}
+            <label>Password<input required type="password" autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 8 : undefined} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={signup ? "Create a password (8+ characters)" : "Enter your password"} disabled={!configured || submitting} /></label>
             {!signup && <button className="forgot-link" type="button" disabled={!configured || submitting || !email.includes("@") || resetSent} onClick={() => void sendResetEmail()}>{resetSent ? "Reset email requested" : "Forgot password?"}</button>}
-            <button className="auth-submit" type="submit" disabled={!configured || submitting}>{submitting ? "Please wait…" : signup ? "Create account" : "Sign in"} <ArrowRight size={16} /></button>
+            {resetSent && <p className="auth-success" role="status">If an account matches that email, a reset link is on its way. Check your inbox and spam folder.</p>}
+            <button className="auth-submit" type="submit" disabled={!configured || submitting || password.length === 0}>{submitting ? "Please wait…" : signup ? "Create account" : "Sign in"} <ArrowRight size={16} /></button>
           </form>
         </>}
           {configured && <p className="auth-secure-note"><span /> Your account is secured with Supabase authentication.</p>}

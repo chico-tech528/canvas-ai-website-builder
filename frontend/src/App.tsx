@@ -490,11 +490,12 @@ function Studio() {
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<ProtectedStudio />} /><Route path="/login" element={<AuthPage initialMode="login" />} /><Route path="/signup" element={<AuthPage initialMode="signup" />} /><Route path="/auth/:mode" element={<AuthPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>;
+  return <Routes><Route path="/" element={<ProtectedStudio />} /><Route path="/login" element={<AuthPage initialMode="login" />} /><Route path="/signup" element={<AuthPage initialMode="signup" />} /><Route path="/reset-password" element={<AuthPage initialMode="reset-password" />} /><Route path="/auth/:mode" element={<AuthPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>;
 }
 
 function ProtectedStudio() {
-  const { configured, loading, user } = useAuth();
+  const { configured, loading, recoveryMode, user } = useAuth();
+  if (recoveryMode) return <Navigate to="/reset-password" replace />;
   if (import.meta.env.PROD && !configured) {
     return <main className="auth-page"><section className="auth-card"><div className="auth-mark"><Sparkles size={19} /></div><span className="eyebrow">DEPLOYMENT SETUP</span><h1>Workspace setup required.</h1><p>This production build is missing its public Supabase authentication settings. Rebuild the frontend with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY configured.</p></section></main>;
   }

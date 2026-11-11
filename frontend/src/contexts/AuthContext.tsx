@@ -6,6 +6,7 @@ import { AuthContext, type AuthContextValue } from "./context";
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -17,8 +18,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "SIGNED_OUT") setRecoveryMode(false);
       setLoading(false);
     });
     return () => {
@@ -30,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     configured: isSupabaseConfigured,
     loading,
+    recoveryMode,
     session,
     user: session?.user || null,
     async signIn(identifier, password) {
@@ -59,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         options: {
-          data: { display_name: name, phone_number: phone },
+          data: { display_name: name, ...(phone ? { phone_number: phone } : {}) },
           emailRedirectTo: window.location.origin,
         },
       });
@@ -88,16 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async resetPassword(email) {
       if (!supabase) throw new Error("Authentication is not configured for this deployment.");
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: new URL("/reset-password", window.location.origin).toString(),
       });
       if (error) throw error;
+    },
+    async updatePassword(password) {
+      if (!supabase) throw new Error("Authentication is not configured for this deployment.");
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setRecoveryMode(false);
     },
     async signOut() {
       if (!supabase) return;
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     },
-  }), [loading, session]);
+  }), [loading, recoveryMode, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
